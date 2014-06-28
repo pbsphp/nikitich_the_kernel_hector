@@ -7,6 +7,10 @@
 
 #define DEVICE_NAME "nikitich"
 
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Pbs <pbsphp@yandex.ru>");
+MODULE_DESCRIPTION("Nikitich - the kernel hector");
+MODULE_SUPPORTED_DEVICE(DEVICE_NAME);
 
 static int device_open(struct inode *, struct file *);
 static int device_release(struct inode *, struct file *);
