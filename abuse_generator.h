@@ -1,4 +1,5 @@
 #include <linux/kernel.h>
+#include <linux/random.h>
 
 
 #define MAX_SYMBOLS 100
@@ -36,7 +37,9 @@ static char *bonuses[] = {
 
 static int random_lt(int n)
 {
-    return 100500 % n;
+    unsigned int rnd = 0;
+    get_random_bytes(&rnd, sizeof(rnd));
+    return rnd % n;
 }
 
 
@@ -67,14 +70,3 @@ static void random_phrase(char *buffer)
 
     snprintf(buffer, MAX_PHRASE_LENGTH, "%s %s, %s\n", noun, adjective, bonus);
 }
-
-
-
-// int main()
-// {
-//     char phrase[300];
-//     random_phrase(phrase);
-//     printf("%s", phrase);
-
-//     return 0;
-// }
