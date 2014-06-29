@@ -21,8 +21,6 @@ static ssize_t device_write(struct file *, const char *, size_t, loff_t *);
 
 static int major_number;
 static int is_device_open = 0;
-// static char *text = "Nikitich works!\n";
-// static char *text_ptr = 0;
 static char phrase[MAX_PHRASE_LENGTH];
 static char *phrase_ptr = 0;
 
@@ -73,7 +71,7 @@ static int device_open(struct inode *inode, struct file *file)
 
     ++is_device_open;
 
-    random_phrase(phrase);
+    get_random_phrase(phrase);
     phrase_ptr = phrase;
 
     return 0;

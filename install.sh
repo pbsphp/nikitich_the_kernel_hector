@@ -25,9 +25,9 @@ if [ -z "$major" ]; then
 fi
 
 
-echo "Creating /dev/$DEVICE_NAME..."
-
 # Create /dev/DEVICE
+
+echo "Creating /dev/$DEVICE_NAME..."
 
 mknod /dev/$DEVICE_NAME c $major 0 || {
     echo "Cannot create /dev/$DEVICE_NAME. Fail!"

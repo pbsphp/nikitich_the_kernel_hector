@@ -3,7 +3,7 @@
 
 
 #define MAX_SYMBOLS 100
-#define MAX_PHRASE_LENGTH 300
+#define MAX_PHRASE_LENGTH 1000
 
 
 static char *nouns[] = {
@@ -14,37 +14,63 @@ static char *nouns[] = {
     "PIDOR",
     "UEBOK",
     "PIDRILA",
+    "GANDILA",
     0
 };
 
 static char *adjectives[] = {
     "EBANI",
     "SSANI",
+    "ZASHKVARINY",
+    "OBOSSANY",
     0
 };
 
-static char *bonuses[] = {
+static char *etc[] = {
     "CHTOB TI SDOH",
     "LUCHE BI TI SDOH V DETSTVE",
     "TI PROSTO KUSOK GOVNA",
     "POSMOTRI NA SEBYA, TI ZHE UEBOK",
     "NE ZRYA TEBYA NENAVIDYAT DAZHE RODYTELEE",
     "IDI POZHALUYSYA MAMOCHKE, NICHTOZHESTVO",
+    "TVOI BATYA LISIY",
+    0
+};
+
+static char *verbs[] = {
+    "SOSI",
+    "SOSI HUY",
+    "GOVNA POESH",
+    "NAVERNI GOVNA",
+    "GOVNETSA NAVERNI",
+    "VIEBI SVOYU MAMKU",
+    "NASSI SEBE V ROT",
+    0
+};
+
+static char *patterns[] = {
+    "%n %e, %e BLYAT",
+    "%n %e, %n",
+    "%e, %e, %n",
     0
 };
 
 
 
-static int random_lt(int n)
+static int random_lt(unsigned int n)
 {
     unsigned int rnd = 0;
     get_random_bytes(&rnd, sizeof(rnd));
+
+    if (n == 0) {
+        return 0;
+    }
     return rnd % n;
 }
 
 
 
-static void get_random(char *buffer, char **dictionary)
+static void get_random_from_dict(char *buffer, char **dictionary)
 {
     int dict_length = 0;
     int random_index = 0;
@@ -58,15 +84,75 @@ static void get_random(char *buffer, char **dictionary)
 
 
 
-static void random_phrase(char *buffer)
+static void get_random_word_by_type(char type, char *word)
 {
-    char noun[MAX_SYMBOLS];
-    char adjective[MAX_SYMBOLS];
-    char bonus[MAX_SYMBOLS];
+    char **dict = 0;
 
-    get_random(noun, nouns);
-    get_random(adjective, adjectives);
-    get_random(bonus, bonuses);
+    switch (type) {
+    case 'n':
+        dict = nouns;
+        break;
+    case 'a':
+        dict = adjectives;
+        break;
+    case 'e':
+        dict = etc;
+        break;
+    case 'v':
+        dict = verbs;
+        break;
+    default:
+        strcpy(word, "%");
+        return;
+    }
 
-    snprintf(buffer, MAX_PHRASE_LENGTH, "%s %s, %s\n", noun, adjective, bonus);
+    get_random_from_dict(word, dict);
 }
+
+
+
+static void get_random_phrase(char *phrase)
+{
+    char pattern_buffer[MAX_PHRASE_LENGTH];
+    char *pattern = pattern_buffer;
+
+    char word_buffer[MAX_SYMBOLS];
+    char *word = word_buffer;
+
+    int i = 0;
+
+    get_random_from_dict(pattern, patterns);
+
+    while (*pattern != '\0') {
+        word = word_buffer;
+        if (*pattern == '%' && *(pattern + 1) != '\0') {
+            ++pattern;
+
+            get_random_word_by_type(*pattern, word);
+
+            i = MAX_SYMBOLS;
+            while (*word != '\0' && i--) {
+                *phrase++ = *word++;
+            }
+        }
+        else {
+            *phrase++ = *pattern;
+        }
+
+        ++pattern;
+    }
+    *phrase = '\0';
+}
+
+
+
+// int main()
+// {
+//     char phrase[1000];
+
+//     get_random_phrase(phrase);
+
+//     printf("%s\n", phrase);
+
+//     return 0;
+// }
