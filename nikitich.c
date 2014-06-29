@@ -4,6 +4,8 @@
 #include <linux/fs.h>
 #include <asm/uaccess.h>
 
+#include "abuse_generator.h"
+
 
 #define DEVICE_NAME "nikitich"
 
@@ -19,8 +21,10 @@ static ssize_t device_write(struct file *, const char *, size_t, loff_t *);
 
 static int major_number;
 static int is_device_open = 0;
-static char *text = "Nikitich works!\n";
-static char *text_ptr = 0;
+// static char *text = "Nikitich works!\n";
+// static char *text_ptr = 0;
+static char phrase[MAX_PHRASE_LENGTH];
+static char *phrase_ptr = 0;
 
 
 
@@ -68,7 +72,9 @@ static int device_open(struct inode *inode, struct file *file)
     }
 
     ++is_device_open;
-    text_ptr = text;
+
+    random_phrase(phrase);
+    phrase_ptr = phrase;
 
     return 0;
 }
@@ -96,9 +102,9 @@ static ssize_t device_read(struct file *filp, char *buffer,
 {
     int read_bytes = 0;
 
-    while (length != 0 && *text_ptr != '\0') {
-        put_user(*text_ptr, buffer);
-        ++text_ptr;
+    while (length != 0 && *phrase_ptr != '\0') {
+        put_user(*phrase_ptr, buffer);
+        ++phrase_ptr;
         ++buffer;
         --length;
         ++read_bytes;
