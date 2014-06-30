@@ -152,16 +152,3 @@ static void get_random_phrase(char *phrase)
     }
     *phrase = '\0';
 }
-
-
-
-// int main()
-// {
-//     char phrase[1000];
-
-//     get_random_phrase(phrase);
-
-//     printf("%s\n", phrase);
-
-//     return 0;
-// }
