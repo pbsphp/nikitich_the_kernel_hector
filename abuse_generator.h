@@ -52,6 +52,15 @@ static char *patterns[] = {
     "%n %e, %e BLYAT",
     "%n %e, %n",
     "%e, %e, %n",
+    "%n %a, %n %a",
+    "%n, BLYAT, %a. %n!",
+    "%n NAHUI",
+    "%n %e, NAHUI",
+    "%a %n",
+    "%a %n, BLYAT",
+    "%n %a, %e EPT",
+    "%e, %n",
+    "%e, %a %n",
     0
 };
 
