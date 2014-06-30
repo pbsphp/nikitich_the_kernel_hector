@@ -72,6 +72,8 @@ static int device_open(struct inode *inode, struct file *file)
     get_random_phrase(phrase);
     phrase_ptr = phrase;
 
+    snprintf(phrase, MAX_PHRASE_LENGTH, "%s\n", phrase);
+
     return 0;
 }
 
