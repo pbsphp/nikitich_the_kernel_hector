@@ -19,6 +19,7 @@ typedef enum
     T_UNDEFINED = 0,
     T_TEXT,
     T_CHOISE,
+    T_POSSIBILITY,
     T_LIST,
     T_SEPARATOR
 } token_type;
@@ -94,6 +95,22 @@ void destroy_node_with_childs(Node *node)
 
 
 /**
+ * Returns unsigned random less then $floor_
+ *
+ * @param floor_    Random value guaranteed to be less then $floor_
+ *                  Except $floot_ == 0!
+ */
+unsigned int random_lt(unsigned int floor_)
+{
+    if (floor_ == 0) {
+        return 0;
+    }
+    srand(time(NULL));
+    return rand() % floor_;
+}
+
+
+/**
  * Chooses random from nodes
  * If number_of_nodes == 0 then returns NULL
  *
@@ -106,8 +123,7 @@ Node *choose_random(Node **nodes, unsigned int number_of_nodes)
         return NULL;
     }
 
-    srand(time(NULL));
-    return nodes[rand() % number_of_nodes];
+    return nodes[random_lt(number_of_nodes)];
 }
 
 
@@ -123,7 +139,7 @@ void recursive_print(Node *node, int nesting)
         }
         printf("%s\n", node->content);
     }
-    else if (node->type == T_CHOISE || node->type == T_LIST) {
+    else if (node->type == T_CHOISE || node->type == T_LIST || node->type == T_POSSIBILITY) {
         int i;
         for (i = 0; i < node->number_of_childs; ++i) {
             recursive_print(node->childs[i], nesting + 1);
@@ -169,6 +185,13 @@ void compile(Node *node, char *destination,
         for (i = 0; i < node->number_of_childs; ++i) {
             compile(node->childs[i], destination, pos, max_symbols);
         }
+        break;
+
+    case T_POSSIBILITY:
+        if (random_lt(2) == 1 && node->number_of_childs != 0) {
+            compile(node->childs[0], destination, pos, max_symbols);
+        }
+        break;
 
     default:
         /* Ignore other types */
@@ -191,7 +214,8 @@ void compile(Node *node, char *destination,
  */
 int is_separator(char character)
 {
-    return (character == '(' || character == ')' || character == '|');
+    return (character == '(' || character == ')' || character == '|' ||
+            character == '[' || character == ']');
 }
 
 
@@ -275,7 +299,10 @@ void make_phrase(const char *pattern, char *expression, int max_symbols)
         if (strcmp(token, "(") == 0) {
             current = create_node(current, T_CHOISE, "");
         }
-        else if (strcmp(token, ")") == 0) {
+        if (strcmp(token, "[") == 0) {
+            current = create_node(current, T_POSSIBILITY, "");
+        }
+        else if (strcmp(token, ")") == 0 || strcmp(token, "]") == 0) {
             if (current && current->parent) {
                 current = current->parent;
             }
@@ -316,7 +343,7 @@ void make_phrase(const char *pattern, char *expression, int max_symbols)
 
 int main()
 {
-    char *pattern = "";
+    char *pattern = "A[B]";
 
     char buffer[1000];
 
