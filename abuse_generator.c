@@ -50,6 +50,27 @@ typedef struct Node
 
 
 
+/* Private */
+static Node *create_node(Node *parent, token_type type, char *content);
+static void destroy_node_with_childs(Node *node);
+static unsigned int random_lt(unsigned int floor_);
+static Node *choose_random(Node **nodes, unsigned int number_of_nodes);
+static void recursive_print(Node *node, int nesting);
+static void compile(Node *node, char *destination,
+                    unsigned int *pos, unsigned int max_symbols);
+static int is_separator(char character);
+static void get_token(const char *expression, char *buffer, unsigned int *position);
+static void tokenize(const char *pattern, char **tokens);
+static void parse_syntax(const char *pattern, char *expression);
+static void get_random_from_dict(char *buffer, char **dictionary);
+static void get_random_word_by_type(char type, char *word);
+static void replace_variables(const char *pattern, char *expression);
+
+/* Public */
+void get_random_phrase(char *destination);
+
+
+
 /**
  * Creates node in syntax tree and append it to $parent
  * $parent can be NULL
