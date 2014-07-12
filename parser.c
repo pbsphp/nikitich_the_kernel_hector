@@ -3,12 +3,16 @@
 #include <string.h>
 #include <time.h>
 
+#include "dictionary.h"
+
 
 #define MAX_TOKEN_TEXT_SIZE 200
-
 #define MAX_CHILDS 10
-
 #define MAX_TOKENS 100
+
+#define MAX_PHRASE_LENGTH 1000
+#define MAX_WORD_SIZE 100
+
 
 
 /**
@@ -102,10 +106,11 @@ void destroy_node_with_childs(Node *node)
  */
 unsigned int random_lt(unsigned int floor_)
 {
+    static unsigned int addition = 0;
     if (floor_ == 0) {
         return 0;
     }
-    srand(time(NULL));
+    srand(time(NULL) + addition++);
     return rand() % floor_;
 }
 
@@ -259,7 +264,6 @@ void tokenize(const char *pattern, char **tokens)
     while (1) {
         token = buffer;
         get_token(pattern, token, &position);
-
         if (*token == '\0') {
             break;
         }
@@ -277,7 +281,7 @@ void tokenize(const char *pattern, char **tokens)
  * @param *expression   It will contain new expression
  * @param max_symbols   Max width of expression
  */
-void make_phrase(const char *pattern, char *expression, int max_symbols)
+void parse_syntax(const char *pattern, char *expression)
 {
     /* Allocate memory for tokens array */
     char **tokens = (char **) malloc(sizeof(char *) * MAX_TOKENS);
@@ -299,7 +303,7 @@ void make_phrase(const char *pattern, char *expression, int max_symbols)
         if (strcmp(token, "(") == 0) {
             current = create_node(current, T_CHOISE, "");
         }
-        if (strcmp(token, "[") == 0) {
+        else if (strcmp(token, "[") == 0) {
             current = create_node(current, T_POSSIBILITY, "");
         }
         else if (strcmp(token, ")") == 0 || strcmp(token, "]") == 0) {
@@ -325,7 +329,7 @@ void make_phrase(const char *pattern, char *expression, int max_symbols)
 
     /* Parse syntax tree and build expression */
     unsigned int position = 0;
-    compile(root, expression, &position, max_symbols);
+    compile(root, expression, &position, MAX_PHRASE_LENGTH);
 
 
     /* Free memory */
@@ -340,17 +344,120 @@ void make_phrase(const char *pattern, char *expression, int max_symbols)
 }
 
 
+/**
+ * Chooses random word from dictionary
+ *
+ * @param *buffer       Buffer for word
+ * @param **dictionary  Dictionary with words
+ */
+static void get_random_from_dict(char *buffer, char **dictionary)
+{
+    int dict_length = 0;
+    int random_index = 0;
+    while (dictionary[dict_length] != 0) {
+        ++dict_length;
+    }
+
+    random_index = random_lt(dict_length);
+    strncpy(buffer, dictionary[random_index], MAX_WORD_SIZE);
+}
+
+
+/**
+ * Gets word type and places random word (of this type) to *word
+ *
+ * @param type      Type (character). For example, 'n' is noun.
+ * @param *word     Buffer for word
+ */
+static void get_random_word_by_type(char type, char *word)
+{
+    char **dict = 0;
+
+    switch (type) {
+    case 'n':
+        dict = nouns;
+        break;
+    case 'a':
+        dict = adjectives;
+        break;
+    case 'e':
+        dict = etc;
+        break;
+    case 'v':
+        dict = verbs;
+        break;
+    default:
+        strcpy(word, "%");
+        return;
+    }
+
+    get_random_from_dict(word, dict);
+}
+
+
+/**
+ * Replaces variables to words
+ *
+ * @param *pattern      String with variables
+ * @param *expression   Expression with words
+ */
+void replace_variables(const char *pattern, char *expression)
+{
+    char word_buffer[MAX_WORD_SIZE];
+    char *word = word_buffer;
+
+    int i;
+
+    while (*pattern != '\0') {
+        word = word_buffer;
+        if (*pattern == '%' && *(pattern + 1) != '\0') {
+            ++pattern;
+
+            get_random_word_by_type(*pattern, word);
+
+            i = MAX_PHRASE_LENGTH;
+
+            /* TODO: Maybe strcat? */
+            while (*word != '\0' && i--) {
+                *expression++ = *word++;
+            }
+        }
+        else {
+            *expression++ = *pattern;
+        }
+
+        ++pattern;
+    }
+    *expression = '\0';
+}
+
+
+
+/* Public */
+
+/**
+ * Puts random (compiled) phrase to destination string
+ *
+ * @param *destination       Places random phrase here
+ */
+void get_random_phrase(char *destination)
+{
+    char pattern[MAX_PHRASE_LENGTH];
+    char buffer[MAX_PHRASE_LENGTH];
+
+    get_random_from_dict(pattern, patterns);
+    parse_syntax(pattern, buffer);
+    replace_variables(buffer, destination);
+}
+
 
 int main()
 {
-    char *pattern = "A[B]";
-
     char buffer[1000];
-
-    char *ptr = buffer;
-    make_phrase(pattern, ptr, 1000);
-
-    printf("'%s'\n", ptr);
+    for (int i = 0; i < 100; ++i) {
+        get_random_phrase(buffer);
+        printf("%s\n", buffer);
+    }
 
     return 0;
 }
