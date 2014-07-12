@@ -4,6 +4,16 @@
 #include <time.h>
 
 
+#define MAX_TOKEN_TEXT_SIZE 200
+
+#define MAX_CHILDS 10
+
+#define MAX_TOKENS 100
+
+
+/**
+ * Types of tokens:
+ */
 typedef enum
 {
     T_UNDEFINED = 0,
@@ -15,28 +25,47 @@ typedef enum
 
 
 
+/**
+ * Node of syntax tree
+ *
+ * TODO: optimize!
+ */
 typedef struct Node
 {
-    struct Node *childs[1000];
+    struct Node *childs[MAX_CHILDS];
     int number_of_childs;
 
     struct Node *parent;
 
 
     token_type type;
-    char content[1000];
+    char content[MAX_TOKEN_TEXT_SIZE];
 
 } Node;
 
 
 
+/**
+ * Creates node in syntax tree and append it to $parent
+ * $parent can be NULL
+ *
+ * @param *parent   Pointer to parent.
+ *                  This new node will be pushed to
+ *                  parent->childs
+ * @param type      One of token_type enum
+ * @param *content  If type is T_TEXT it must be text,
+ *                  else - empty string
+ *
+ * Fixme: not to push node to parent->childs,
+ *        if number_of_childs >= MAX_CHILDS
+ */
 Node *create_node(Node *parent, token_type type, char *content)
 {
     Node *node = (Node *) malloc(sizeof(Node));
     node->number_of_childs = 0;
 
     node->type = type;
-    strcpy(node->content, content);
+    strncpy(node->content, content, MAX_TOKEN_TEXT_SIZE);
 
     node->parent = parent;
     if (parent) {
@@ -47,11 +76,15 @@ Node *create_node(Node *parent, token_type type, char *content)
 }
 
 
+/**
+ * Releases memory of node and all childs
+ *
+ * @param *node     Node for destorying
+ */
 void destroy_node_with_childs(Node *node)
 {
     if (node) {
-        int i;
-        for (i = 0; i < node->number_of_childs; ++i) {
+        for (int i = 0; i < node->number_of_childs; ++i) {
             destroy_node_with_childs(node->childs[i]);
         }
 
@@ -60,6 +93,13 @@ void destroy_node_with_childs(Node *node)
 }
 
 
+/**
+ * Chooses random from nodes
+ * If number_of_nodes == 0 then returns NULL
+ *
+ * @param **nodes           Pointer to array of nodes
+ * @param number_of_nodes   Number of nodes in array
+ */
 Node *choose_random(Node **nodes, unsigned int number_of_nodes)
 {
     if (number_of_nodes == 0) {
@@ -71,6 +111,9 @@ Node *choose_random(Node **nodes, unsigned int number_of_nodes)
 }
 
 
+/**
+ * DEBUG ONLY. TODO: Remove
+ */
 void recursive_print(Node *node, int nesting)
 {
     if (node->type == T_TEXT) {
@@ -89,43 +132,71 @@ void recursive_print(Node *node, int nesting)
 }
 
 
-void compile(Node *node, char *destination, int *pos)
+/**
+ * If node->type is T_TEXT then appends append->content
+ * to destination.
+ *
+ * @param *node         Node deals with
+ * @param *destination  String to appending node->content
+ * @param *pos          Pointer to current position in destination string
+ * @param max_symbols   Length of buffer (destination)
+ *
+ * TODO: Rename
+ */
+void compile(Node *node, char *destination,
+             unsigned int *pos, unsigned int max_symbols)
 {
-    char *p = NULL;
+    char *dst = NULL;
     Node *random = NULL;
     int i;
 
     switch (node->type) {
     case T_TEXT:
-        p = node->content;
-        while (*p) {
-            destination[(*pos)++] = *p++;
+        dst = node->content;
+        while (*dst && *pos < max_symbols - 1) {
+            destination[(*pos)++] = *dst++;
         }
         destination[*pos] = '\0';
         break;
 
     case T_CHOISE:
         random = choose_random(node->childs, node->number_of_childs);
-        compile(random, destination, pos);
+        compile(random, destination, pos, max_symbols);
         break;
 
     case T_LIST:
         for (i = 0; i < node->number_of_childs; ++i) {
-            compile(node->childs[i], destination, pos);
+            compile(node->childs[i], destination, pos, max_symbols);
         }
 
     default:
-    break;
+        /* Ignore other types */
+        /* TODO: Error on T_UNDEFINED */
+        break;
     }
 }
 
 
+/**
+ * Is character separator
+ *
+ * @param character     Character lol
+ *
+ * TODO: Rename
+ */
 int is_separator(char character)
 {
     return (character == '(' || character == ')' || character == '|');
 }
 
 
+/**
+ * Gets token from expression and writes it to buffer
+ * If no more tokens then buffer will be empty string
+ *
+ * @param *expression       Expression with tokens
+ * @param *buffer           Buffer for token
+ */
 void get_token(const char *expression, char *buffer)
 {
     static unsigned int position = 0;
@@ -142,9 +213,15 @@ void get_token(const char *expression, char *buffer)
 }
 
 
+/**
+ * Splits expression to tokens and write them to $tokens
+ *
+ * @param *expression   Expression for splitting
+ * @param **tokens      Tokens will be written here
+ */
 void tokenize(const char *expression, char **tokens)
 {
-    char buffer[1000];
+    char buffer[MAX_TOKEN_TEXT_SIZE];
     char *token = NULL;
     int token_number = 0;
 
@@ -152,27 +229,38 @@ void tokenize(const char *expression, char **tokens)
         token = buffer;
         get_token(expression, token);
 
-        if (*token == '\0') break;
-        strcpy(tokens[token_number++], token);
+        if (*token == '\0') {
+            break;
+        }
+        strncpy(tokens[token_number++], token, MAX_TOKEN_TEXT_SIZE);
     }
 
     tokens[token_number] = NULL;
 }
 
 
-void make_phrase(const char *expression, char *destination)
+/**
+ * Makes phrase by pattern and write it to expression
+ *
+ * @param *pattern      It will be interpretated
+ * @param *expression   It will contain new expression
+ * @param max_symbols   Max width of expression
+ */
+void make_phrase(const char *pattern, char *expression, int max_symbols)
 {
-    char **tokens = (char **) malloc(sizeof(char *) * 100);
-    for (int i = 0; i < 100; ++i) {
-        tokens[i] = (char *) malloc(sizeof(char) * 100);
+    /* Allocate memory for tokens array */
+    char **tokens = (char **) malloc(sizeof(char *) * MAX_TOKENS);
+    for (int i = 0; i < MAX_TOKENS; ++i) {
+        tokens[i] = (char *) malloc(sizeof(char) * MAX_TOKEN_TEXT_SIZE);
     }
 
-    tokenize(expression, tokens);
+    /* Split pattern to tokens */
+    tokenize(pattern, tokens);
 
+    /* Build syntax tree */
     Node *root = create_node(NULL, T_LIST, "");
 
     Node *current = root;
-
 
     for (int i = 0; tokens[i] != NULL; ++i) {
         char *token = tokens[i];
@@ -192,16 +280,19 @@ void make_phrase(const char *expression, char *destination)
     }
 
 
-    int position = 0;
-    compile(root, destination, &position);
+    /* Parse syntax tree and build expression */
+    unsigned int position = 0;
+    compile(root, expression, &position, max_symbols);
 
 
-    for (int i = 0; i < 100; ++i) {
+    /* Free memory */
+    for (int i = 0; i < MAX_TOKENS; ++i) {
         free(tokens[i]);
     }
 
     free(tokens);
 
+    /* Destroy syntax tree and free memory */
     destroy_node_with_childs(root);
 }
 
@@ -209,11 +300,11 @@ void make_phrase(const char *expression, char *destination)
 
 int main()
 {
-    char *expression = "begin (first|( A| B)) end";
+    char *pattern = "begin (first|(A|B)) end";
     char buffer[1000];
 
     char *ptr = buffer;
-    make_phrase(expression, ptr);
+    make_phrase(pattern, ptr, 1000);
 
     printf("%s\n", ptr);
 
