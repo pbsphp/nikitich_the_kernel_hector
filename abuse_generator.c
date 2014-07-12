@@ -1,7 +1,7 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
+#include <linux/kernel.h>
+#include <linux/random.h>
+#include <linux/slab.h>
+
 
 #include "dictionary.h"
 
@@ -55,7 +55,7 @@ static Node *create_node(Node *parent, token_type type, char *content);
 static void destroy_node_with_childs(Node *node);
 static unsigned int random_lt(unsigned int floor_);
 static Node *choose_random(Node **nodes, unsigned int number_of_nodes);
-static void recursive_print(Node *node, int nesting);
+/*static void recursive_print(Node *node, int nesting);*/
 static void compile(Node *node, char *destination,
                     unsigned int *pos, unsigned int max_symbols);
 static int is_separator(char character);
@@ -85,9 +85,9 @@ void get_random_phrase(char *destination);
  * Fixme: not to push node to parent->childs,
  *        if number_of_childs >= MAX_CHILDS
  */
-Node *create_node(Node *parent, token_type type, char *content)
+static Node *create_node(Node *parent, token_type type, char *content)
 {
-    Node *node = (Node *) malloc(sizeof(Node));
+    Node *node = (Node *) kmalloc(sizeof(Node), GFP_USER);
     node->number_of_childs = 0;
 
     node->type = type;
@@ -107,14 +107,15 @@ Node *create_node(Node *parent, token_type type, char *content)
  *
  * @param *node     Node for destorying
  */
-void destroy_node_with_childs(Node *node)
+static void destroy_node_with_childs(Node *node)
 {
+    int i;
     if (node) {
-        for (int i = 0; i < node->number_of_childs; ++i) {
+        for (i = 0; i < node->number_of_childs; ++i) {
             destroy_node_with_childs(node->childs[i]);
         }
 
-        free(node);
+        kfree(node);
     }
 }
 
@@ -125,14 +126,15 @@ void destroy_node_with_childs(Node *node)
  * @param floor_    Random value guaranteed to be less then $floor_
  *                  Except $floot_ == 0!
  */
-unsigned int random_lt(unsigned int floor_)
+static unsigned int random_lt(unsigned int floor_)
 {
-    static unsigned int addition = 0;
+    unsigned int rnd = 0;
+    get_random_bytes(&rnd, sizeof(rnd));
+
     if (floor_ == 0) {
         return 0;
     }
-    srand(time(NULL) + addition++);
-    return rand() % floor_;
+    return rnd % floor_;
 }
 
 
@@ -143,7 +145,7 @@ unsigned int random_lt(unsigned int floor_)
  * @param **nodes           Pointer to array of nodes
  * @param number_of_nodes   Number of nodes in array
  */
-Node *choose_random(Node **nodes, unsigned int number_of_nodes)
+static Node *choose_random(Node **nodes, unsigned int number_of_nodes)
 {
     if (number_of_nodes == 0) {
         return NULL;
@@ -156,6 +158,7 @@ Node *choose_random(Node **nodes, unsigned int number_of_nodes)
 /**
  * DEBUG ONLY. TODO: Remove
  */
+/*
 void recursive_print(Node *node, int nesting)
 {
     if (node->type == T_TEXT) {
@@ -172,7 +175,7 @@ void recursive_print(Node *node, int nesting)
         }
     }
 }
-
+*/
 
 /**
  * If node->type is T_TEXT then appends append->content
@@ -185,7 +188,7 @@ void recursive_print(Node *node, int nesting)
  *
  * TODO: Rename
  */
-void compile(Node *node, char *destination,
+static void compile(Node *node, char *destination,
              unsigned int *pos, unsigned int max_symbols)
 {
     char *dst = NULL;
@@ -238,7 +241,7 @@ void compile(Node *node, char *destination,
  *
  * TODO: Rename
  */
-int is_separator(char character)
+static int is_separator(char character)
 {
     return (character == '(' || character == ')' || character == '|' ||
             character == '[' || character == ']');
@@ -253,7 +256,7 @@ int is_separator(char character)
  * @param *buffer           Buffer for token
  * @param *position         Next token starts here
  */
-void get_token(const char *expression, char *buffer, unsigned int *position)
+static void get_token(const char *expression, char *buffer, unsigned int *position)
 {
     if (is_separator(expression[*position])) {
         *buffer++ = expression[*position];
@@ -275,7 +278,7 @@ void get_token(const char *expression, char *buffer, unsigned int *position)
  * @param *pattern   pattern for splitting
  * @param **tokens      Tokens will be written here
  */
-void tokenize(const char *pattern, char **tokens)
+static void tokenize(const char *pattern, char **tokens)
 {
     char buffer[MAX_TOKEN_TEXT_SIZE];
     char *token = NULL;
@@ -301,35 +304,44 @@ void tokenize(const char *pattern, char **tokens)
  * @param *pattern      It will be interpretated
  * @param *expression   It will contain new expression
  * @param max_symbols   Max width of expression
+ *
+ * Notes: $current and $root renamed to $current_node and $root_node
+ *        due to library name conflict.
  */
-void parse_syntax(const char *pattern, char *expression)
+static void parse_syntax(const char *pattern, char *expression)
 {
+    Node *root_node = NULL;
+    Node *current_node = NULL;
+    int i = 0;
+    unsigned int position = 0;
+
     /* Allocate memory for tokens array */
-    char **tokens = (char **) malloc(sizeof(char *) * MAX_TOKENS);
-    for (int i = 0; i < MAX_TOKENS; ++i) {
-        tokens[i] = (char *) malloc(sizeof(char) * MAX_TOKEN_TEXT_SIZE);
+    char **tokens = (char **) kmalloc(sizeof(char *) * MAX_TOKENS, GFP_USER);
+
+    for (i = 0; i < MAX_TOKENS; ++i) {
+        tokens[i] = (char *) kmalloc(sizeof(char) * MAX_TOKEN_TEXT_SIZE, GFP_USER);
     }
 
     /* Split pattern to tokens */
     tokenize(pattern, tokens);
 
     /* Build syntax tree */
-    Node *root = create_node(NULL, T_LIST, "");
+    root_node = create_node(NULL, T_LIST, "");
 
-    Node *current = root;
+    current_node = root_node;
 
-    for (int i = 0; tokens[i] != NULL; ++i) {
+    for (i = 0; tokens[i] != NULL; ++i) {
         char *token = tokens[i];
 
         if (strcmp(token, "(") == 0) {
-            current = create_node(current, T_CHOISE, "");
+            current_node = create_node(current_node, T_CHOISE, "");
         }
         else if (strcmp(token, "[") == 0) {
-            current = create_node(current, T_POSSIBILITY, "");
+            current_node = create_node(current_node, T_POSSIBILITY, "");
         }
         else if (strcmp(token, ")") == 0 || strcmp(token, "]") == 0) {
-            if (current && current->parent) {
-                current = current->parent;
+            if (current_node && current_node->parent) {
+                current_node = current_node->parent;
             }
             else {
                 /* Unexpected parenthesis. TODO: Error */
@@ -339,29 +351,29 @@ void parse_syntax(const char *pattern, char *expression)
             /* Separator, do nothing */
         }
         else {
-            create_node(current, T_TEXT, token);
+            create_node(current_node, T_TEXT, token);
         }
     }
 
-    if (current != root) {
+    if (current_node != root_node) {
         /* Unexpected parenthesis. TODO: Error */
     }
 
 
     /* Parse syntax tree and build expression */
-    unsigned int position = 0;
-    compile(root, expression, &position, MAX_PHRASE_LENGTH);
+    position = 0;
+    compile(root_node, expression, &position, MAX_PHRASE_LENGTH);
 
 
     /* Free memory */
-    for (int i = 0; i < MAX_TOKENS; ++i) {
-        free(tokens[i]);
+    for (i = 0; i < MAX_TOKENS; ++i) {
+        kfree(tokens[i]);
     }
 
-    free(tokens);
+    kfree(tokens);
 
     /* Destroy syntax tree and free memory */
-    destroy_node_with_childs(root);
+    destroy_node_with_childs(root_node);
 }
 
 
@@ -422,7 +434,7 @@ static void get_random_word_by_type(char type, char *word)
  * @param *pattern      String with variables
  * @param *expression   Expression with words
  */
-void replace_variables(const char *pattern, char *expression)
+static void replace_variables(const char *pattern, char *expression)
 {
     char word_buffer[MAX_WORD_SIZE];
     char *word = word_buffer;
@@ -463,22 +475,16 @@ void replace_variables(const char *pattern, char *expression)
  */
 void get_random_phrase(char *destination)
 {
-    char pattern[MAX_PHRASE_LENGTH];
-    char buffer[MAX_PHRASE_LENGTH];
+    /* Allocate dynamic memory, care stack */
+    char *pattern = (char *) kmalloc(sizeof(char) * \
+                                     MAX_PHRASE_LENGTH, GFP_USER);
+    char *buffer = (char *) kmalloc(sizeof(char) * \
+                                    MAX_PHRASE_LENGTH, GFP_USER);
 
     get_random_from_dict(pattern, patterns);
     parse_syntax(pattern, buffer);
     replace_variables(buffer, destination);
-}
 
-
-int main()
-{
-    char buffer[1000];
-    for (int i = 0; i < 100; ++i) {
-        get_random_phrase(buffer);
-        printf("%s\n", buffer);
-    }
-
-    return 0;
+    kfree(pattern);
+    kfree(buffer);
 }
