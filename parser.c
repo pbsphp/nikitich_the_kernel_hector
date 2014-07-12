@@ -156,12 +156,13 @@ void compile(Node *node, char *destination,
         while (*dst && *pos < max_symbols - 1) {
             destination[(*pos)++] = *dst++;
         }
-        destination[*pos] = '\0';
         break;
 
     case T_CHOISE:
         random = choose_random(node->childs, node->number_of_childs);
-        compile(random, destination, pos, max_symbols);
+        if (random) {
+            compile(random, destination, pos, max_symbols);
+        }
         break;
 
     case T_LIST:
@@ -174,6 +175,10 @@ void compile(Node *node, char *destination,
         /* TODO: Error on T_UNDEFINED */
         break;
     }
+
+    /* Moved from T_TEXT section here for security reasons
+    Error occurs While node->number_of_childs == 0 */
+    destination[*pos] = '\0';
 }
 
 
@@ -196,17 +201,18 @@ int is_separator(char character)
  *
  * @param *expression       Expression with tokens
  * @param *buffer           Buffer for token
+ * @param *position         Next token starts here
  */
-void get_token(const char *expression, char *buffer)
+void get_token(const char *expression, char *buffer, unsigned int *position)
 {
-    static unsigned int position = 0;
-
-    if (is_separator(expression[position])) {
-        *buffer++ = expression[position++];
+    if (is_separator(expression[*position])) {
+        *buffer++ = expression[*position];
+        ++(*position);
     }
     else {
-        while (expression[position] && !is_separator(expression[position])) {
-            *buffer++ = expression[position++];
+        while (expression[*position] && !is_separator(expression[*position])) {
+            *buffer++ = expression[*position];
+            ++(*position);
         }
     }
     *buffer = '\0';
@@ -214,20 +220,21 @@ void get_token(const char *expression, char *buffer)
 
 
 /**
- * Splits expression to tokens and write them to $tokens
+ * Splits pattern to tokens and write them to $tokens
  *
- * @param *expression   Expression for splitting
+ * @param *pattern   pattern for splitting
  * @param **tokens      Tokens will be written here
  */
-void tokenize(const char *expression, char **tokens)
+void tokenize(const char *pattern, char **tokens)
 {
     char buffer[MAX_TOKEN_TEXT_SIZE];
     char *token = NULL;
     int token_number = 0;
+    unsigned int position = 0;
 
     while (1) {
         token = buffer;
-        get_token(expression, token);
+        get_token(pattern, token, &position);
 
         if (*token == '\0') {
             break;
@@ -269,7 +276,12 @@ void make_phrase(const char *pattern, char *expression, int max_symbols)
             current = create_node(current, T_CHOISE, "");
         }
         else if (strcmp(token, ")") == 0) {
-            current = current->parent;
+            if (current && current->parent) {
+                current = current->parent;
+            }
+            else {
+                /* Unexpected parenthesis. TODO: Error */
+            }
         }
         else if (strcmp(token, "|") == 0) {
             /* Separator, do nothing */
@@ -277,6 +289,10 @@ void make_phrase(const char *pattern, char *expression, int max_symbols)
         else {
             create_node(current, T_TEXT, token);
         }
+    }
+
+    if (current != root) {
+        /* Unexpected parenthesis. TODO: Error */
     }
 
 
@@ -300,13 +316,14 @@ void make_phrase(const char *pattern, char *expression, int max_symbols)
 
 int main()
 {
-    char *pattern = "begin (first|(A|B)) end";
+    char *pattern = "";
+
     char buffer[1000];
 
     char *ptr = buffer;
     make_phrase(pattern, ptr, 1000);
 
-    printf("%s\n", ptr);
+    printf("'%s'\n", ptr);
 
     return 0;
 }
