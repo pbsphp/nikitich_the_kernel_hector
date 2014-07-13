@@ -44,7 +44,7 @@ static char *verbs[] = {
 
 static char *patterns[] = {
     "%n %a[ %n[ %a]]",
-    "%n[ %e]",
+    "%n[ %e], %n",
     "%n (%a|%e)[, %v]",
     "%a %n[ BLYAT][, %v]",
     "(TVOI VSE EBAL|%v), %n",

@@ -34,7 +34,7 @@ static struct file_operations fops =
 
 
 
-int init_module(void)
+static int __init module_onload(void)
 {
     printk(KERN_INFO "Nikitich is coming!\n");
 
@@ -53,7 +53,7 @@ int init_module(void)
 
 
 
-void cleanup_module(void)
+static void __exit module_onexit(void)
 {
     unregister_chrdev(major_number, DEVICE_NAME);
     printk(KERN_INFO "Nikitich gone away.\n");
@@ -102,3 +102,7 @@ static ssize_t device_read(struct file *filp, char *buffer,
 
     return read_bytes;
 }
+
+
+module_init(module_onload);
+module_exit(module_onexit);

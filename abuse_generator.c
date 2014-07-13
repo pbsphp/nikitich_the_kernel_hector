@@ -32,20 +32,37 @@ typedef enum
 
 /**
  * Node of syntax tree
- *
- * TODO: optimize!
  */
 typedef struct Node
 {
-    struct Node *childs[MAX_CHILDS];
-    int number_of_childs;
-
+    /* Parent of this node */
     struct Node *parent;
 
-
+    /* Type of token */
     token_type type;
-    char content[MAX_TOKEN_TEXT_SIZE];
 
+    /* Node can be T_TEXT or something other.
+       If Node type is T_TEXT, then it has content string which contains text,
+       (number_of_childs should be 0)
+       Otherwise it has child[s] and number_of_childs.
+       (content should be empty null-terminated string) */
+
+    union {
+        /* T_TEXT */
+        struct {
+            /* String with text */
+            char content[MAX_TOKEN_TEXT_SIZE];
+        };
+
+        /* T_LIST, T_POSSIBILITY, T_CHOISE */
+        struct {
+            /* All childs */
+            struct Node *childs[MAX_CHILDS];
+
+            /* Number of childs */
+            int number_of_childs;
+        };
+    };
 } Node;
 
 
